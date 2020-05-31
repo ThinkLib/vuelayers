@@ -73,11 +73,16 @@ export default {
      * @returns {Promise<module:ol/ImageBase~ImageBase>}
      */
     async getImage (extent, resolution, pixelRatio, projection) {
+      await this.resolveSource()
+
+      return this.getImageSync(extent, resolution, pixelRatio, projection)
+    },
+    getImageSync (extent, resolution, pixelRatio, projection) {
       if (isString(projection)) {
         projection = getProj(projection)
       }
 
-      return (await this.resolveSource()).getImage(extent, resolution, pixelRatio, projection)
+      return this.$source.getImage(extent, resolution, pixelRatio, projection)
     },
   },
 }

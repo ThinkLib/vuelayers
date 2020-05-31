@@ -229,9 +229,14 @@ export default {
      * @returns {Promise<void>}
      */
     async setActive (active) {
-      if (active === await this.getActive()) return
+      await this.resolveInteraction()
 
-      (await this.resolveInteraction()).setActive(active)
+      this.setActiveSync(active)
+    },
+    setActiveSync (active) {
+      if (active === this.getActiveSync()) return
+
+      this.$interaction.setActive(active)
     },
     /**
      * @returns {Promise<number>}
@@ -249,9 +254,14 @@ export default {
      * @returns {Promise<void>}
      */
     async setPriority (priority) {
-      if (priority === await this.getPriority()) return
+      await this.resolveInteraction()
 
-      setInteractionPriority(await this.resolveInteraction(), priority)
+      this.setPrioritySync(priority)
+    },
+    setPrioritySync (priority) {
+      if (priority === this.getPrioritySync()) return
+
+      setInteractionPriority(this.$interaction, priority)
       // eslint-disable-next-line no-unused-expressions
       this.$interactionsContainer?.sortInteractions()
     },

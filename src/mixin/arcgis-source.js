@@ -202,19 +202,27 @@ export default {
      * @returns {Promise<Object>}
      */
     async getParams () {
-      return (await this.resolveSource()).getParams()
+      await this.resolveSource()
+
+      return this.getParamsSync()
+    },
+    getParamsSync () {
+      return this.$source.getParams()
     },
     /**
      * @param {Object} params
      * @returns {Promise<void>}
      */
     async updateParams (params) {
+      await this.resolveSource()
+
+      this.updateParamsSync(params)
+    },
+    updateParamsSync (params) {
       params = { ...this.allParams, ...params }
-      const source = await this.resolveSource()
+      if (isEqual(params, this.getParamsSync())) return
 
-      if (isEqual(params, source.getParams())) return
-
-      source.updateParams(params)
+      this.$source.updateParams(params)
     },
     /**
      * @param {string} param
@@ -223,6 +231,9 @@ export default {
      */
     async updateParam (param, value) {
       await this.updateParams({ [param.toUpperCase()]: value })
+    },
+    updateParamSync (param, value) {
+      this.updateParamsSync({ [param.toUpperCase()]: value })
     },
   },
 }

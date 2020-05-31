@@ -5,7 +5,7 @@ import { map as mapObs, skipWhile } from 'rxjs/operators'
 import { getFeatureId, getFeatureProperties, initializeFeature, setFeatureId, setFeatureProperties } from '../ol-ext'
 import { fromOlEvent as obsFromOlEvent, fromVueEvent as obsFromVueEvent } from '../rx-ext'
 import { assert } from '../util/assert'
-import { clonePlainObject, hasProp, isEqual, isFunction, pick, stubObject } from '../util/minilo'
+import { clonePlainObject, hasProp, isEqual, pick, stubObject } from '../util/minilo'
 import mergeDescriptors from '../util/multi-merge-descriptors'
 import waitFor from '../util/wait-for'
 import geometryContainer from './geometry-container'
@@ -225,16 +225,26 @@ export default {
      * @return {Promise<string>}
      */
     async getGeometryName () {
-      return (await this.resolveFeature()).getGeometryName()
+      await this.resolveFeature()
+
+      return this.getGeometryNameSync()
+    },
+    getGeometryNameSync () {
+      return this.$feature.getGeometryName()
     },
     /**
      * @param {string} geometryName
      * @return {Promise<void>}
      */
     async setGeometryName (geometryName) {
-      if (geometryName === await this.getGeometryName()) return
+      await this.resolveFeature()
 
-      (await this.resolveFeature()).setGeometryName(geometryName)
+      this.setGeometryNameSync(geometryName)
+    },
+    setGeometryNameSync (geometryName) {
+      if (geometryName === this.getGeometryNameSync()) return
+
+      this.$feature.setGeometryName(geometryName)
     },
     /**
      * @return {Promise<Object>}
@@ -252,11 +262,15 @@ export default {
      * @return {Promise<void>}
      */
     async setProperties (properties) {
+      await this.resolveFeature()
+
+      this.setPropertiesSync(properties)
+    },
+    setPropertiesSync (properties) {
       properties = getFeatureProperties({ properties })
+      if (isEqual(properties, this.getPropertiesSync())) return
 
-      if (isEqual(properties, await this.getProperties())) return
-
-      setFeatureProperties(await this.resolveFeature(), properties)
+      setFeatureProperties(this.$feature, properties)
     },
     /**
      * Checks if feature lies at `pixel`.
@@ -264,30 +278,23 @@ export default {
      * @return {Promise<boolean>}
      */
     async isAtPixel (pixel) {
-      const selfFeature = await this.resolveFeature()
+      await Promise.all([
+        this.resolveFeature(),
+        this.$layerVm.resolveLayer(),
+        this.$mapVm.resolveMap(),
+      ])
+
+      return this.isAtPixelSync(pixel)
+    },
+    isAtPixelSync (pixel) {
+      const selfFeature = this.$feature
       let layerFilter
       if (this.$layerVm) {
-        const selfLayer = await this.$layerVm.resolveLayer()
+        const selfLayer = this.$layerVm.$layer
         layerFilter = layer => layer === selfLayer
       }
 
-      return this.$mapVm.forEachFeatureAtPixel(pixel, feature => feature === selfFeature, { layerFilter })
-    },
-    /**
-     * @param {FeatureLike} feature
-     * @return {Promise<void>}
-     * @protected
-     */
-    async mergeWith (feature) {
-      if (!feature) return
-      if (isFunction(feature.resolveOlObject)) {
-        feature = await feature.resolveOlObject()
-      }
-      if (feature === await this.resolveFeature()) return
-
-      await this.setProperties({ ...feature.getProperties() })
-      await this.mergeGeometryWith(feature.getGeometry())
-      await this.mergeStyleWith(feature.getStyle())
+      return this.$mapVm.forEachFeatureAtPixelSync(pixel, feature => feature === selfFeature, { layerFilter })
     },
   },
 }

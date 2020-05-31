@@ -1,5 +1,5 @@
 import { map as mapObs, skipWhile } from 'rxjs/operators'
-import { getGeometryId, initializeGeometry, roundExtent, setGeometryId } from '../ol-ext'
+import { getGeometryId, initializeGeometry, roundExtent, roundPointCoords, setGeometryId } from '../ol-ext'
 import { fromOlChangeEvent as obsFromOlChangeEvent, fromVueEvent as obsFromVueEvent } from '../rx-ext'
 import { assert } from '../util/assert'
 import { addPrefix, hasProp, isEqual, pick } from '../util/minilo'
@@ -168,82 +168,154 @@ export default {
      * @returns {Promise<string>}
      */
     async getType () {
-      return (await this.resolveGeometry()).getType()
+      await this.resolveGeometry()
+
+      return this.getTypeSync()
+    },
+    getTypeSync () {
+      return this.$geometry.getType()
     },
     /**
      * @param {number[]} [extent]
+     * @param {boolean} [viewProj=false]
      * @returns {Promise<number[]>}
      */
-    async getExtent (extent) {
+    async getExtent (extent, viewProj = false) {
       await this.resolveGeometry()
 
-      return this.getExtentSync(extent)
+      return this.getExtentSync(extent, viewProj)
     },
     getExtentSync (extent, viewProj = false) {
       if (viewProj) {
         return roundExtent(this.$geometry.getExtent(extent))
       }
 
-      extent = extent != null ? this.extentToViewProj(extent) : null
-
-      return this.extentToDataProj(this.$geometry.getExtent(extent))
+      return this.extentToDataProj(this.$geometry.getExtent(this.extentToViewProj(extent)))
     },
     /**
      * @param {number[]} point
      * @param {number[]} [closestPoint]
+     * @param {boolean} [viewProj=false]
      * @returns {Promise<number[]>}
      */
-    async getClosestPoint (point, closestPoint) {
-      point = this.pointToViewProj(point)
-      closestPoint = closestPoint != null ? this.pointToViewProj(closestPoint) : undefined
+    async getClosestPoint (point, closestPoint, viewProj = false) {
+      await this.resolveGeometry()
 
-      return this.pointToDataProj((await this.resolveGeometry()).getClosestPoint(point, closestPoint))
+      return this.getClosestPointSync(point, closestPoint, viewProj)
+    },
+    getClosestPointSync (point, closestPoint, viewProj = false) {
+      if (viewProj) {
+        return roundPointCoords(this.$geometry.getClosestPoint(point, closestPoint))
+      }
+
+      point = this.pointToViewProj(point)
+      closestPoint = this.pointToViewProj(closestPoint)
+
+      return this.pointToDataProj(this.$geometry.getClosestPoint(point, closestPoint))
     },
     /**
      * @param {number[]} coordinate
+     * @param {boolean} [viewProj=false]
      * @returns {Promise<boolean>}
      */
-    async isIntersectsCoordinate (coordinate) {
-      return (await this.resolveGeometry()).intersectsCoordinate(this.pointToViewProj(coordinate))
+    async intersectsCoordinate (coordinate, viewProj = false) {
+      await this.resolveGeometry()
+
+      return this.intersectsCoordinateSync(coordinate, viewProj)
+    },
+    intersectsCoordinateSync (coordinate, viewProj = false) {
+      if (!viewProj) {
+        coordinate = this.pointToViewProj(coordinate)
+      }
+
+      return this.$geometry.intersectsCoordinate(coordinate)
     },
     /**
      * @param {number[]} extent
+     * @param {boolean} [viewProj=false]
      * @returns {Promise<boolean>}
      */
-    async isIntersectsExtent (extent) {
-      return (await this.resolveGeometry()).intersectsExtent(this.extentToViewProj(extent))
+    async intersectsExtent (extent, viewProj = false) {
+      await this.resolveGeometry()
+
+      return this.intersectsExtentSync(extent, viewProj)
+    },
+    intersectsExtentSync (extent, viewProj = false) {
+      if (!viewProj) {
+        extent = this.extentToViewProj(extent)
+      }
+
+      return this.$geometry.intersectsExtent(extent)
     },
     /**
      * @param {number} angle Angle in radians
      * @param {number[]} anchor
+     * @param {boolean} [viewProj=false]
      * @returns {Promise<void>}
      */
-    async rotate (angle, anchor) {
-      (await this.resolveGeometry()).rotate(angle, this.pointToViewProj(anchor))
+    async rotate (angle, anchor, viewProj = false) {
+      await this.resolveGeometry()
+
+      this.rotateSync(angle, anchor, viewProj)
+    },
+    rotateSync (angle, anchor, viewProj = false) {
+      if (!viewProj) {
+        anchor = this.pointToViewProj(anchor)
+      }
+
+      this.$geometry.rotate(angle, anchor)
     },
     /**
      * @param {number} sx
      * @param {number} [sy]
      * @param {number[]} [anchor]
+     * @param {boolean} [viewProj=false]
      * @returns {Promise<void>}
      */
-    async scale (sx, sy, anchor) {
-      (await this.resolveGeometry()).scale(sx, sy, anchor && this.pointToViewProj(anchor))
+    async scale (sx, sy, anchor, viewProj = false) {
+      await this.resolveGeometry()
+
+      this.scaleSync(sx, sy, anchor, viewProj)
+    },
+    scaleSync (sx, sy, anchor, viewProj = false) {
+      if (!viewProj) {
+        anchor = this.pointToViewProj(anchor);
+        [sx] = this.pointToViewProj([sx, 0]);
+        [, sy] = this.pointToViewProj([0, sy])
+      }
+
+      this.$geometry.scale(sx, sy, anchor)
     },
     /**
      * @param {number} tolerance
      * @returns {Promise<module:ol/geom/Geometry~Geometry>}
      */
     async simplify (tolerance) {
-      return (await this.resolveGeometry()).simplify(tolerance)
+      await this.resolveGeometry()
+
+      return this.simplifySync(tolerance)
+    },
+    simplifySync (tolerance) {
+      return this.$geometry.simplify(tolerance)
     },
     /**
      * @param dx
      * @param dy
+     * @param {boolean} [viewProj=false]
      * @returns {Promise<*>}
      */
-    async translate (dx, dy) {
-      return (await this.resolveGeometry()).translate(dx, dy)
+    async translate (dx, dy, viewProj = false) {
+      await this.resolveGeometry()
+
+      return this.translateSync(dx, dy, viewProj)
+    },
+    translateSync (dx, dy, viewProj = false) {
+      if (!viewProj) {
+        [dx] = this.pointToViewProj([dx, 0]);
+        [, dy] = this.pointToViewProj([0, dy])
+      }
+
+      return this.$geometry.translate(dx, dy)
     },
   },
 }

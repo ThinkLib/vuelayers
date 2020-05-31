@@ -107,7 +107,12 @@ export default {
      * @returns {Promise<module:ol/renderer/Layer~LayerRenderer>}
      */
     async getRenderer () {
-      return (await this.resolveLayer()).getRenderer()
+      await this.resolveLayer()
+
+      return this.getRendererSync()
+    },
+    getRendererSync () {
+      return this.$layer.getRenderer()
     },
     /**
      * @param {module:ol/Map~Map|Object|undefined} map
@@ -117,8 +122,12 @@ export default {
       if (map && isFunction(map.resolveOlObject)) {
         map = await map.resolveOlObject()
       }
+      await this.resolveLayer()
 
-      (await this.resolveLayer()).setMap(map)
+      this.setMapSync(map)
+    },
+    setMapSync (map) {
+      this.$layer.setMap(map)
     },
   },
 }
